@@ -1,0 +1,18 @@
+# Python
+desktop/__pycache__/
+desktop/*.spec
+desktop/build/
+
+# PyInstaller dist (binary)
+# desktop/dist/
+
+# Android
+android/.gradle/
+android/build/
+android/app/build/
+android/.idea/
+android/local.properties
+
+# OS
+Thumbs.db
+.DS_Store
