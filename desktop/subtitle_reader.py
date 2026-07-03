@@ -681,8 +681,9 @@ class SubtitleReader:
 
 
     def set_window_icon(self):
-        ico_path = os.path.join(os.path.dirname(__file__), "icon.ico")
-        png_path = os.path.join(os.path.dirname(__file__), "icon.png")
+        base = getattr(sys, '_MEIPASS', os.path.dirname(__file__))
+        ico_path = os.path.join(base, "icon.ico")
+        png_path = os.path.join(base, "icon.png")
         if os.path.exists(ico_path):
             try:
                 self.root.iconbitmap(ico_path)
