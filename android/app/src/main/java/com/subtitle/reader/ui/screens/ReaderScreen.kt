@@ -1,13 +1,16 @@
 package com.subtitle.reader.ui.screens
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
@@ -19,7 +22,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.subtitle.reader.model.SubtitleItem
@@ -28,6 +30,7 @@ import com.subtitle.reader.util.DocxExporter
 import com.subtitle.reader.util.Strings
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import kotlin.math.abs
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -45,21 +48,30 @@ fun ReaderScreen() {
     var colorPickerTarget by remember { mutableStateOf("text") }
     var showExportDialog by remember { mutableStateOf(false) }
     var showLangMenu by remember { mutableStateOf(false) }
+    var showCloseConfirm by remember { mutableStateOf(false) }
+    var showRecentFiles by remember { mutableStateOf(false) }
     var fileName by remember { mutableStateOf("") }
     var fileUri by remember { mutableStateOf<Uri?>(null) }
     var langKey by remember { mutableStateOf(Strings.getLanguage()) }
+    var pendingRestoreIndex by remember { mutableStateOf(-1) }
 
     val context = LocalContext.current
+    val prefs = context.getSharedPreferences("subtitle_reader", Context.MODE_PRIVATE)
+    val lazyListState = rememberLazyListState()
 
     val filePickerLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let {
+            savePosition(prefs, fileUri, lazyListState)
             val result = loadSubtitle(context, it)
             if (result != null) {
                 items = result.first
                 fileName = result.second
                 fileUri = it
+                addToRecentFiles(prefs, it.toString())
+                val savedIdx = loadPosition(prefs, it.toString())
+                pendingRestoreIndex = if (savedIdx >= 0) savedIdx else -1
             }
         }
     }
@@ -78,6 +90,43 @@ fun ReaderScreen() {
         uri?.let { saveExportDocx(context, it, items, showIndex, showTime, showDuration, fontSize) }
     }
 
+    fun closeFile() {
+        savePosition(prefs, fileUri, lazyListState)
+        items = emptyList()
+        fileName = ""
+        fileUri = null
+        pendingRestoreIndex = -1
+    }
+
+    fun openRecentFile(uriString: String) {
+        val uri = Uri.parse(uriString)
+        try {
+            val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+            context.contentResolver.takePersistableUriPermission(uri, takeFlags)
+        } catch (_: Exception) {}
+        savePosition(prefs, fileUri, lazyListState)
+        val result = loadSubtitle(context, uri)
+        if (result != null) {
+            items = result.first
+            fileName = result.second
+            fileUri = uri
+            addToRecentFiles(prefs, uriString)
+            val savedIdx = loadPosition(prefs, uriString)
+            pendingRestoreIndex = if (savedIdx >= 0) savedIdx else -1
+        }
+    }
+
+    LaunchedEffect(items) {
+        if (items.isNotEmpty() && pendingRestoreIndex >= 0) {
+            val idx = pendingRestoreIndex.coerceIn(0, items.size - 1)
+            lazyListState.animateScrollToItem(idx)
+            pendingRestoreIndex = -1
+        }
+    }
+
+    val progress = if (items.isEmpty()) 0f
+        else (lazyListState.firstVisibleItemIndex.toFloat() / items.size.toFloat()).coerceIn(0f, 1f)
+
     Scaffold(
         topBar = {
             TopAppBar(
@@ -91,6 +140,14 @@ fun ReaderScreen() {
                     Box {
                         IconButton(onClick = { showLangMenu = true }) {
                             Icon(Icons.Default.Language, contentDescription = Strings.get("language"))
+                        }
+                        if (items.isNotEmpty()) {
+                            IconButton(onClick = { showCloseConfirm = true }) {
+                                Icon(Icons.Default.Close, contentDescription = Strings.get("close_file"))
+                            }
+                        }
+                        IconButton(onClick = { showRecentFiles = true }) {
+                            Icon(Icons.Default.History, contentDescription = Strings.get("recent_files"))
                         }
                         IconButton(onClick = { filePickerLauncher.launch(arrayOf("text/*", "*/*")) }) {
                             Icon(Icons.Default.FolderOpen, contentDescription = Strings.get("open"))
@@ -173,12 +230,18 @@ fun ReaderScreen() {
             }
         }
     ) { padding ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
                 .background(bgColor)
         ) {
+            if (items.isNotEmpty()) {
+                LinearProgressIndicator(
+                    progress = progress,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
             if (items.isEmpty()) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
@@ -201,6 +264,7 @@ fun ReaderScreen() {
                 }
             } else {
                 LazyColumn(
+                    state = lazyListState,
                     modifier = Modifier
                         .fillMaxSize()
                         .padding(horizontal = 12.dp, vertical = 8.dp)
@@ -271,6 +335,85 @@ fun ReaderScreen() {
             onDismiss = { showLangMenu = false }
         )
     }
+
+    if (showCloseConfirm) {
+        AlertDialog(
+            onDismissRequest = { showCloseConfirm = false },
+            title = { Text(Strings.get("close_file")) },
+            text = { Text(Strings.get("confirm_close")) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showCloseConfirm = false
+                    closeFile()
+                }) {
+                    Text(Strings.get("yes"))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showCloseConfirm = false }) {
+                    Text(Strings.get("no"))
+                }
+            }
+        )
+    }
+
+    if (showRecentFiles) {
+        RecentFilesDialog(
+            prefs = prefs,
+            onSelect = { uriString ->
+                showRecentFiles = false
+                openRecentFile(uriString)
+            },
+            onDismiss = { showRecentFiles = false }
+        )
+    }
+}
+
+@Composable
+private fun RecentFilesDialog(
+    prefs: android.content.SharedPreferences,
+    onSelect: (String) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val recent = getRecentFiles(prefs)
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(Strings.get("recent_files")) },
+        text = {
+            if (recent.isEmpty()) {
+                Text(Strings.get("no_recent_files"))
+            } else {
+                Column {
+                    recent.forEach { uriString ->
+                        val name = uriString.substringAfterLast('/').substringAfterLast(':')
+                            .ifEmpty { uriString }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { onSelect(uriString) }
+                                .padding(vertical = 8.dp)
+                        ) {
+                            Icon(
+                                Icons.Default.Description,
+                                null,
+                                modifier = Modifier.size(20.dp),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            Spacer(Modifier.width(8.dp))
+                            Text(name, modifier = Modifier.weight(1f))
+                        }
+                        Divider()
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(Strings.get("close"))
+            }
+        }
+    )
 }
 
 @Composable
@@ -317,6 +460,10 @@ private fun SubtitleEntry(
 
 private fun loadSubtitle(context: Context, uri: Uri): Pair<List<SubtitleItem>, String>? {
     return try {
+        val takeFlags = Intent.FLAG_GRANT_READ_URI_PERMISSION
+        try {
+            context.contentResolver.takePersistableUriPermission(uri, takeFlags)
+        } catch (_: Exception) {}
         val inputStream = context.contentResolver.openInputStream(uri) ?: return null
         val reader = BufferedReader(InputStreamReader(inputStream))
         val content = reader.readText()
@@ -562,4 +709,32 @@ private fun LanguageDialog(
         },
         confirmButton = { TextButton(onClick = onDismiss) { Text(Strings.get("close")) } }
     )
+}
+
+private fun savePosition(prefs: android.content.SharedPreferences, uri: Uri?, state: androidx.compose.foundation.lazy.LazyListState) {
+    if (uri == null) return
+    val key = "pos_" + abs(uri.toString().hashCode())
+    prefs.edit().putInt(key, state.firstVisibleItemIndex).apply()
+}
+
+private fun loadPosition(prefs: android.content.SharedPreferences, uriString: String): Int {
+    val key = "pos_" + abs(uriString.hashCode())
+    return prefs.getInt(key, -1)
+}
+
+private fun getRecentFiles(prefs: android.content.SharedPreferences): List<String> {
+    val json = prefs.getString("recent_files", "[]") ?: "[]"
+    return try {
+        val arr = org.json.JSONArray(json)
+        (0 until arr.length()).map { arr.getString(it) }
+    } catch (_: Exception) { emptyList() }
+}
+
+private fun addToRecentFiles(prefs: android.content.SharedPreferences, uriString: String) {
+    val list = getRecentFiles(prefs).toMutableList()
+    list.remove(uriString)
+    list.add(0, uriString)
+    val trimmed = list.take(10)
+    val arr = org.json.JSONArray(trimmed)
+    prefs.edit().putString("recent_files", arr.toString()).apply()
 }

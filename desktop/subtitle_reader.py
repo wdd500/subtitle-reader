@@ -4,6 +4,7 @@ import tkinter as tk
 from tkinter import filedialog, colorchooser, font, ttk, messagebox
 import re
 import os
+import json
 
 try:
     from docx import Document
@@ -47,6 +48,9 @@ LANG = {
         "export_fmt": "导出格式",
         "export_txt": "文本 (.txt)",
         "export_docx": "Word (.docx)",
+        "menu_close": "关闭",
+        "menu_recent": "最近打开",
+        "file_missing": "(文件不存在)",
     },
     "en": {
         "app_title": "Subtitle Reader",
@@ -81,6 +85,9 @@ LANG = {
         "export_fmt": "Export Format",
         "export_txt": "Text (.txt)",
         "export_docx": "Word (.docx)",
+        "menu_close": "Close",
+        "menu_recent": "Recent Files",
+        "file_missing": "(file missing)",
     },
 }
 
@@ -257,6 +264,7 @@ class SubtitleReader:
         self.font_size = 22
         self.font_family = "Segoe UI"
         self.w = {}
+        self._last_rebuild_recent = []
         self.build_ui()
         self.apply_language()
 
@@ -266,13 +274,7 @@ class SubtitleReader:
 
     def apply_language(self):
         self.root.title(self._("app_title"))
-
-        self.file_menu.delete(0, "end")
-        self.file_menu.add_command(label=self._("menu_open"), command=self.open_file, accelerator="Ctrl+O")
-        self.file_menu.add_separator()
-        self.file_menu.add_command(label=self._("menu_export"), command=self.export_content, accelerator="Ctrl+E")
-        self.file_menu.add_separator()
-        self.file_menu.add_command(label=self._("menu_exit"), command=self.root.quit)
+        self.rebuild_file_menu()
 
         self.lang_menu.delete(0, "end")
         self.lang_menu.add_command(label=self._("lang_zh"), command=lambda: self.set_language("zh"))
@@ -359,42 +361,59 @@ class SubtitleReader:
         self.w["status_lbl"] = ttk.Label(toolbar)
         self.w["status_lbl"].pack(side=tk.LEFT, padx=5)
 
+        prog_frame = ttk.Frame(self.root)
+        prog_frame.pack(fill=tk.X, padx=5, pady=(0, 2))
+        self.progress_bar = ttk.Progressbar(prog_frame, mode="determinate", value=0)
+        self.progress_bar.pack(fill=tk.X, expand=True)
+
         text_frame = ttk.Frame(self.root, padding=5)
         text_frame.pack(fill=tk.BOTH, expand=True)
 
         self.text_area = tk.Text(text_frame, wrap=tk.WORD, font=(self.font_family, self.font_size),
                                  fg=self.text_color, bg=self.bg_color, relief=tk.SUNKEN, borderwidth=2)
-        scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=self.text_area.yview)
-        self.text_area.configure(yscrollcommand=scrollbar.set)
+        self.scrollbar = ttk.Scrollbar(text_frame, orient=tk.VERTICAL, command=self._on_scrollbar)
+        self.text_area.configure(yscrollcommand=self._on_text_scroll)
         self.text_area.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        self.scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         self.text_area.config(state=tk.DISABLED)
+        self.text_area.bind("<MouseWheel>", self._on_mousewheel)
+        self.text_area.bind("<ButtonRelease-1>", self.update_progress)
+        self.text_area.bind("<KeyRelease>", self.update_progress)
 
     def set_language(self, lang):
         self.current_lang = lang
         self.apply_language()
 
     # ---- file ----
-    def open_file(self):
-        path = filedialog.askopenfilename(
-            title=self._("menu_open"),
-            filetypes=[(self._("file_filter"), "*.srt *.sub *.ass *.ssa"), (self._("all_files"), "*.*")]
-        )
+    def open_file(self, filepath=None, restore_pos=False):
+        if filepath is None:
+            path = filedialog.askopenfilename(
+                title=self._("menu_open"),
+                filetypes=[(self._("file_filter"), "*.srt *.sub *.ass *.ssa"), (self._("all_files"), "*.*")]
+            )
+        else:
+            path = filepath
         if not path:
             return
+        self.save_position()
         try:
             self.items = SubtitleParser.parse_file(path)
             self.current_filepath = path
             self.root.title(f"{self._('app_title')} - {os.path.basename(path)}")
             self.w["status_lbl"].config(
                 text=f"  {os.path.basename(path)}  |  {self._('sub_count').format(len(self.items))}")
-            self.file_menu.entryconfig(2, state=tk.NORMAL)
             self.refresh_display()
+            if restore_pos:
+                self.restore_position()
+            self.update_recent_files(path)
+            self.update_progress()
+            self.rebuild_file_menu()
         except Exception as e:
             self.text_area.config(state=tk.NORMAL)
             self.text_area.delete(1.0, tk.END)
             self.text_area.insert(tk.END, self._("open_err").format(e))
             self.text_area.config(state=tk.DISABLED)
+            self.rebuild_file_menu()
 
     def refresh_display(self):
         self.show_time = self.time_var.get()
@@ -419,6 +438,7 @@ class SubtitleReader:
                     self.text_area.insert(tk.END, prefix + '\n')
                 self.text_area.insert(tk.END, line + '\n\n')
         self.text_area.config(state=tk.DISABLED)
+        self.progress_bar["value"] = 0
 
     def apply_font(self, *args):
         try:
@@ -501,6 +521,161 @@ class SubtitleReader:
             messagebox.showinfo(self._("export_title"), self._("export_ok").format(path))
         except Exception as e:
             messagebox.showerror(self._("export_err"), str(e))
+
+    # ---- config ----
+    def get_config_dir(self):
+        if sys.platform == "win32":
+            base = os.environ.get("APPDATA", os.path.expanduser("~"))
+        else:
+            base = os.path.expanduser("~/.config")
+        cfg_dir = os.path.join(base, "SubtitleReader")
+        os.makedirs(cfg_dir, exist_ok=True)
+        return cfg_dir
+
+    def get_config_path(self):
+        return os.path.join(self.get_config_dir(), "config.json")
+
+    def load_config(self):
+        try:
+            with open(self.get_config_path(), encoding="utf-8") as f:
+                return json.load(f)
+        except:
+            return {"recent_files": [], "positions": {}}
+
+    def save_config(self, cfg):
+        try:
+            with open(self.get_config_path(), "w", encoding="utf-8") as f:
+                json.dump(cfg, f, ensure_ascii=False, indent=2)
+        except:
+            pass
+
+    def update_recent_files(self, filepath):
+        cfg = self.load_config()
+        recent = cfg.get("recent_files", [])
+        if filepath in recent:
+            recent.remove(filepath)
+        recent.insert(0, filepath)
+        cfg["recent_files"] = recent[:10]
+        self.save_config(cfg)
+
+    # ---- position ----
+    def get_current_index(self):
+        if not self.items:
+            return 0
+        try:
+            frac = self.text_area.yview()[0]
+            return max(0, min(int(frac * len(self.items)), len(self.items) - 1))
+        except:
+            return 0
+
+    def save_position(self):
+        if not self.current_filepath or not self.items:
+            return
+        cfg = self.load_config()
+        if "positions" not in cfg:
+            cfg["positions"] = {}
+        idx = self.get_current_index()
+        frac = self.text_area.yview()[0]
+        cfg["positions"][self.current_filepath] = {"index": idx, "fraction": frac}
+        self.save_config(cfg)
+
+    def restore_position(self):
+        if not self.current_filepath:
+            return
+        cfg = self.load_config()
+        pos = cfg.get("positions", {}).get(self.current_filepath)
+        if pos:
+            frac = pos.get("fraction", 0.0)
+            self.root.after_idle(lambda: self.text_area.yview_moveto(frac))
+
+    # ---- close ----
+    def close_file(self):
+        if not self.items:
+            return
+        self.save_position()
+        self.items = []
+        self.current_filepath = None
+        self.root.title(self._("app_title"))
+        self.w["status_lbl"].config(text="")
+        self.refresh_display()
+        self.update_progress()
+        self.rebuild_file_menu()
+
+    # ---- recent files ----
+    def open_recent_file(self, filepath):
+        if not os.path.exists(filepath):
+            cfg = self.load_config()
+            recent = cfg.get("recent_files", [])
+            if filepath in recent:
+                recent.remove(filepath)
+            cfg["recent_files"] = recent
+            self.save_config(cfg)
+            self.rebuild_file_menu()
+            return
+        self.open_file(filepath=filepath, restore_pos=True)
+
+    # ---- progress ----
+    def update_progress(self, *args):
+        if not self.items:
+            self.progress_bar["value"] = 0
+            return
+        try:
+            frac = self.text_area.yview()[0]
+            self.progress_bar["value"] = int(frac * 100)
+        except:
+            self.progress_bar["value"] = 0
+
+    def _on_scrollbar(self, *args):
+        self.text_area.yview(*args)
+        self.update_progress()
+
+    def _on_text_scroll(self, *args):
+        self.scrollbar.set(*args)
+        self.update_progress()
+
+    def _on_mousewheel(self, event):
+        self.root.after(10, self.update_progress)
+
+    # ---- menu rebuild ----
+    def rebuild_file_menu(self):
+        self.file_menu.delete(0, "end")
+        has_file = bool(self.items)
+
+        self.file_menu.add_command(label=self._("menu_open"), command=self.open_file, accelerator="Ctrl+O")
+        self.file_menu.add_command(
+            label=self._("menu_close"), command=self.close_file,
+            state=tk.NORMAL if has_file else tk.DISABLED
+        )
+        self.file_menu.add_separator()
+        self.file_menu.add_command(
+            label=self._("menu_export"), command=self.export_content, accelerator="Ctrl+E",
+            state=tk.NORMAL if has_file else tk.DISABLED
+        )
+        self.file_menu.add_separator()
+
+        cfg = self.load_config()
+        recent = cfg.get("recent_files", [])
+        self._last_rebuild_recent = list(recent)
+        if recent:
+            self.file_menu.add_command(
+                label="── " + self._("menu_recent") + " ──",
+                state=tk.DISABLED
+            )
+            for fpath in recent:
+                exists = os.path.exists(fpath)
+                label = os.path.basename(fpath)
+                if not exists:
+                    label += " " + self._("file_missing")
+                if exists:
+                    self.file_menu.add_command(
+                        label=label,
+                        command=lambda p=fpath: self.open_recent_file(p)
+                    )
+                else:
+                    self.file_menu.add_command(label=label, state=tk.DISABLED)
+
+        self.file_menu.add_separator()
+        self.file_menu.add_command(label=self._("menu_exit"), command=self.root.quit)
 
 
 if __name__ == "__main__":

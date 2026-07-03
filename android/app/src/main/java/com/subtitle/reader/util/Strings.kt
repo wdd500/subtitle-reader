@@ -29,6 +29,12 @@ object Strings {
         "lang_zh" to "中文",
         "lang_en" to "English",
         "hint" to "打开字幕文件 (.srt / .sub / .ass)",
+        "close_file" to "关闭文件",
+        "recent_files" to "最近打开",
+        "no_recent_files" to "没有最近打开的文件",
+        "confirm_close" to "确定关闭当前文件？",
+        "yes" to "确定",
+        "no" to "取消",
     )
 
     private val EN = mapOf(
@@ -59,6 +65,12 @@ object Strings {
         "lang_zh" to "中文",
         "lang_en" to "English",
         "hint" to "Open a subtitle file (.srt / .sub / .ass)",
+        "close_file" to "Close File",
+        "recent_files" to "Recent Files",
+        "no_recent_files" to "No recent files",
+        "confirm_close" to "Close current file?",
+        "yes" to "Yes",
+        "no" to "No",
     )
 
     private var currentLang = "zh"
