@@ -313,6 +313,7 @@ class SubtitleReader:
         self.menubar.add_cascade(label="", menu=self.lang_menu)
 
         self.root.config(menu=self.menubar)
+        self.set_window_icon()
         self.root.bind_all("<Control-o>", lambda e: self.open_file())
         self.root.bind_all("<Control-e>", lambda e: self.export_content())
 
@@ -677,6 +678,22 @@ class SubtitleReader:
         self.file_menu.add_separator()
         self.file_menu.add_command(label=self._("menu_exit"), command=self.root.quit)
 
+
+
+    def set_window_icon(self):
+        ico_path = os.path.join(os.path.dirname(__file__), "icon.ico")
+        png_path = os.path.join(os.path.dirname(__file__), "icon.png")
+        if os.path.exists(ico_path):
+            try:
+                self.root.iconbitmap(ico_path)
+            except:
+                pass
+        elif os.path.exists(png_path):
+            try:
+                img = tk.PhotoImage(file=png_path)
+                self.root.iconphoto(True, img)
+            except:
+                pass
 
 if __name__ == "__main__":
     enable_high_dpi()
