@@ -2,6 +2,7 @@
 
 A bilingual (Chinese/English) subtitle reader for desktop (Windows) and Android. Supports SRT, SUB (MicroDVD), and ASS/SSA subtitle formats.
 双语言（中文/英文）字幕阅读器，支持桌面版（Windows）和 Android 版。支持 SRT、SUB（MicroDVD）和 ASS/SSA 字幕格式。
+![Uploading image.png…]()
 
 ## Features
 ## Features / 功能
@@ -37,8 +38,8 @@ A bilingual (Chinese/English) subtitle reader for desktop (Windows) and Android.
 ### Build EXE / 打包可执行文件
 ```
 pip install pyinstaller python-docx
-pyinstaller --onefile --windowed --name SubtitleReader desktop/subtitle_reader.py
-@ -26,20 +34,24 @@ pyinstaller --onefile --windowed --name SubtitleReader desktop/subtitle_reader.p
+
+pyinstaller --onefile --windowed --name subtitle_reader --icon=icon.ico subtitle_reader.py
 
 ## Android (Kotlin / Jetpack Compose)
 
