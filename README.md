@@ -3,8 +3,9 @@
 A bilingual (Chinese/English) subtitle reader for desktop (Windows) and Android. Supports SRT, SUB (MicroDVD), and ASS/SSA subtitle formats.
 双语言（中文/英文）字幕阅读器，支持桌面版（Windows）和 Android 版。支持 SRT、SUB（MicroDVD）和 ASS/SSA 字幕格式。
 
-<img width="1202" height="1288" alt="1" src="https://github.com/user-attachments/assets/219b653b-d9c6-4f14-ab47-266ba5f2f49e" />
-<img width="1202" height="1288" alt="2" src="https://github.com/user-attachments/assets/7de7a750-525a-4bad-b379-3b52b0951f66" />
+<img width="1699" height="2077" alt="2 2-1png" src="https://github.com/user-attachments/assets/555e1d1b-e88c-48aa-9b2f-68aa681ec4c1" />
+<img width="2104" height="2077" alt="2 2" src="https://github.com/user-attachments/assets/a7daab3a-fc85-4a4f-ac30-1f9f4fc39d6c" />
+
 
 
 ## Features
@@ -25,6 +26,21 @@ A bilingual (Chinese/English) subtitle reader for desktop (Windows) and Android.
   阅读进度条（百分比/分页模式）
 - Recent files with saved progress
   最近打开文件及进度记忆
+
+v2.2（2026-09-01）
+
+新增：左右边距设置。工具栏可调（0–200），随配置保存并在启动时恢复。
+
+新增：窗口底部状态栏，显示文件名、字幕条数、总时长；切换语言时同步刷新。
+
+新增：拖放打开字幕文件。将 .srt / .sub / .ass / .ssa 文件直接拖入窗口即可打开。
+
+调整：界面文字（菜单、工具栏控件、进度条）默认统一为 18 号；正文（字幕内容）字号独立可调，沿用原设置并持久化。
+
+新增：自动加载最近一次设置的字体、背景等。
+
+新增：高 DPI 支持（Per-Monitor DPI Aware），高缩放比例下显示清晰。
+
 
 ## Desktop (Python / tkinter)
 ## Desktop / 桌面版 (Python / tkinter)
