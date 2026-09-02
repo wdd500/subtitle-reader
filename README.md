@@ -3,10 +3,8 @@
 A bilingual (Chinese/English) subtitle reader for desktop (Windows) and Android. Supports SRT, SUB (MicroDVD), and ASS/SSA subtitle formats.
 双语言（中文/英文）字幕阅读器，支持桌面版（Windows）和 Android 版。支持 SRT、SUB（MicroDVD）和 ASS/SSA 字幕格式。
 
-<img width="1699" height="2077" alt="2 2-1png" src="https://github.com/user-attachments/assets/555e1d1b-e88c-48aa-9b2f-68aa681ec4c1" />
 <img width="2104" height="2077" alt="2 2" src="https://github.com/user-attachments/assets/a7daab3a-fc85-4a4f-ac30-1f9f4fc39d6c" />
-
-
+<img width="1699" height="2077" alt="2 2-1png" src="https://github.com/user-attachments/assets/555e1d1b-e88c-48aa-9b2f-68aa681ec4c1" />
 
 ## Features
 ## Features / 功能
