@@ -3,8 +3,11 @@
 A bilingual (Chinese/English) subtitle reader for desktop (Windows) and Android. Supports SRT, SUB (MicroDVD), and ASS/SSA subtitle formats.
 双语言（中文/英文）字幕阅读器，支持桌面版（Windows）和 Android 版。支持 SRT、SUB（MicroDVD）和 ASS/SSA 字幕格式。
 
-<img width="2104" height="2077" alt="2 2" src="https://github.com/user-attachments/assets/a7daab3a-fc85-4a4f-ac30-1f9f4fc39d6c" />
-<img width="1699" height="2077" alt="2 2-1png" src="https://github.com/user-attachments/assets/555e1d1b-e88c-48aa-9b2f-68aa681ec4c1" />
+
+<img width="1500" height="2077" alt="2 3-01" src="https://github.com/user-attachments/assets/ec2b30a1-d10c-43b7-83d5-45afe93ca142" />
+<img width="2046" height="1421" alt="2 3-2" src="https://github.com/user-attachments/assets/d5a615f3-ad83-4a88-a715-b443fe291d70" />
+
+
 
 ## Features
 ## Features / 功能
@@ -24,12 +27,13 @@ A bilingual (Chinese/English) subtitle reader for desktop (Windows) and Android.
   阅读进度条（百分比/分页模式）
 - Recent files with saved progress
   最近打开文件及进度记忆
+  
+# v2.3（2026-09-06）
+
+- 新增：字幕编辑器，增加字幕编辑修改功能。
+- 优化界面显示效果。
 
 v2.2（2026-09-01）
-
-新增：左右边距设置。工具栏可调（0–200），随配置保存并在启动时恢复。
-
-新增：窗口底部状态栏，显示文件名、字幕条数、总时长；切换语言时同步刷新。
 
 新增：拖放打开字幕文件。将 .srt / .sub / .ass / .ssa 文件直接拖入窗口即可打开。
 
