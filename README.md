@@ -6,8 +6,8 @@ A bilingual (Chinese/English) subtitle reader for desktop (Windows) and Android.
 
 <img width="1500" height="2077" alt="2 3-01" src="https://github.com/user-attachments/assets/ec2b30a1-d10c-43b7-83d5-45afe93ca142" />
 <img width="2046" height="1421" alt="2 3-2" src="https://github.com/user-attachments/assets/d5a615f3-ad83-4a88-a715-b443fe291d70" />
-
-
+<img width="1138" height="2006" alt="apk 2 0" src="https://github.com/user-attachments/assets/29f8042c-3b0b-47e0-8f1b-0c1c20ba0def" />
+<img width="1143" height="2004" alt="apk 2 0-1" src="https://github.com/user-attachments/assets/16426eda-b5bb-4451-bf4e-85230e009b6c" />
 
 ## Features
 ## Features / 功能
